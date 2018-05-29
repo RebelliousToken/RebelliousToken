@@ -1,3 +1,4 @@
+
 pragma solidity ^0.4.16;
 
 
@@ -6,25 +7,25 @@ pragma solidity ^0.4.16;
  * @dev Math operations with safety checks that throw on error
  */
 library SafeMath {
-    function mul(uint256 a, uint256 b) internal constant returns (uint256) {
+    function mul(uint256 a, uint256 b) internal pure returns (uint256) {
         uint256 c = a * b;
         assert(a == 0 || c / a == b);
         return c;
     }
 
-    function div(uint256 a, uint256 b) internal constant returns (uint256) {
+    function div(uint256 a, uint256 b) internal pure returns (uint256) {
         // assert(b > 0); // Solidity automatically throws when dividing by 0
         uint256 c = a / b;
         // assert(a == b * c + a % b); // There is no case in which this doesn't hold
         return c;
     }
 
-    function sub(uint256 a, uint256 b) internal constant returns (uint256) {
+    function sub(uint256 a, uint256 b) internal pure returns (uint256) {
         assert(b <= a);
         return a - b;
     }
 
-    function add(uint256 a, uint256 b) internal constant returns (uint256) {
+    function add(uint256 a, uint256 b) internal pure returns (uint256) {
         uint256 c = a + b;
         assert(c >= a);
         return c;
@@ -45,7 +46,7 @@ contract Ownable {
      * @dev The Ownable constructor sets the original `owner` of the contract to the sender
      * account.
      */
-    function Ownable() {
+    function Ownable() public {
         owner = msg.sender;
     }
 
@@ -63,7 +64,7 @@ contract Ownable {
      * @dev Allows the current owner to transfer control of the contract to a newOwner.
      * @param newOwner The address to transfer ownership to.
      */
-    function transferOwnership(address newOwner) onlyOwner {
+    function transferOwnership(address newOwner) onlyOwner public {
         require(newOwner != address(0));
         owner = newOwner;
     }
@@ -78,8 +79,8 @@ contract Ownable {
  */
 contract ERC20Basic {
     uint256 public totalSupply;
-    function balanceOf(address who) constant returns (uint256);
-    function transfer(address to, uint256 value) returns (bool);
+    function balanceOf(address who)  public constant returns (uint256);
+    function transfer(address to, uint256 value)  public returns (bool);
     event Transfer(address indexed from, address indexed to, uint256 value);
 }
 
@@ -89,9 +90,9 @@ contract ERC20Basic {
  * @dev see https://github.com/ethereum/EIPs/issues/20
  */
 contract ERC20 is ERC20Basic {
-    function allowance(address owner, address spender) constant returns (uint256);
-    function transferFrom(address from, address to, uint256 value) returns (bool);
-    function approve(address spender, uint256 value) returns (bool);
+    function allowance(address owner, address spender) public  constant returns (uint256);
+    function transferFrom(address from, address to, uint256 value) public  returns (bool);
+    function approve(address spender, uint256 value)  public returns (bool);
     event Approval(address indexed owner, address indexed spender, uint256 value);
 }
 
@@ -104,9 +105,9 @@ contract PoSTokenStandard {
     uint256 public stakeStartTime;
     uint256 public stakeMinAge;
     uint256 public stakeMaxAge;
-    function mint() returns (bool);
-    function coinAge() constant returns (uint256);
-    function annualInterest() constant returns (uint256);
+    function mint() public returns (bool);
+    function coinAge() public constant returns (uint256);
+    function annualInterest() public constant returns (uint256);
     event Mint(address indexed _address, uint _reward);
 }
 
@@ -153,7 +154,7 @@ contract Rebellious is ERC20, PoSTokenStandard, Ownable {
         _;
     }
 
-    function Rebellious() {
+    function Rebellious() public {
         maxTotalSupply = 69.6*10**25; // 696 Mil.
         totalInitialSupply = 39.6*10**25; // 396 Mil.
 
@@ -164,11 +165,11 @@ contract Rebellious is ERC20, PoSTokenStandard, Ownable {
         totalSupply = totalInitialSupply;
     }
 
-    function transfer(address _to, uint256 _value) onlyPayloadSize(2 * 32) returns (bool) {
+    function transfer(address _to, uint256 _value) public onlyPayloadSize(2 * 32) returns (bool) {
         if(msg.sender == _to) return mint();
         balances[msg.sender] = balances[msg.sender].sub(_value);
         balances[_to] = balances[_to].add(_value);
-        Transfer(msg.sender, _to, _value);
+        emit Transfer(msg.sender, _to, _value);
         if(transferIns[msg.sender].length > 0) delete transferIns[msg.sender];
         uint64 _now = uint64(now);
         transferIns[msg.sender].push(transferInStruct(uint128(balances[msg.sender]),_now));
@@ -176,14 +177,15 @@ contract Rebellious is ERC20, PoSTokenStandard, Ownable {
         return true;
     }
 
-    function balanceOf(address _owner) constant returns (uint256 balance) {
+    function balanceOf(address _owner) public view returns (uint256 balance) {
         return balances[_owner];
     }
 
-    function transferFrom(address _from, address _to, uint256 _value) onlyPayloadSize(3 * 32) returns (bool) {
+    function transferFrom(address _from, address _to, uint256 _value) public onlyPayloadSize(3 * 32) returns (bool) {
         require(_to != address(0));
+        uint256 _allowance;
 
-        var _allowance = allowed[_from][msg.sender];
+        _allowance = allowed[_from][msg.sender];
 
         // Check is not needed because sub(_allowance, _value) will already throw if this condition is not met
         // require (_value <= _allowance);
@@ -191,7 +193,7 @@ contract Rebellious is ERC20, PoSTokenStandard, Ownable {
         balances[_from] = balances[_from].sub(_value);
         balances[_to] = balances[_to].add(_value);
         allowed[_from][msg.sender] = _allowance.sub(_value);
-        Transfer(_from, _to, _value);
+        emit Transfer(_from, _to, _value);
         if(transferIns[_from].length > 0) delete transferIns[_from];
         uint64 _now = uint64(now);
         transferIns[_from].push(transferInStruct(uint128(balances[_from]),_now));
@@ -199,19 +201,19 @@ contract Rebellious is ERC20, PoSTokenStandard, Ownable {
         return true;
     }
 
-    function approve(address _spender, uint256 _value) returns (bool) {
+    function approve(address _spender, uint256 _value) public returns (bool) {
         require((_value == 0) || (allowed[msg.sender][_spender] == 0));
 
         allowed[msg.sender][_spender] = _value;
-        Approval(msg.sender, _spender, _value);
+        emit Approval(msg.sender, _spender, _value);
         return true;
     }
 
-    function allowance(address _owner, address _spender) constant returns (uint256 remaining) {
+    function allowance(address _owner, address _spender) public constant returns (uint256 remaining) {
         return allowed[_owner][_spender];
     }
 
-    function mint() canPoSMint returns (bool) {
+    function mint() public canPoSMint returns (bool) {
         if(balances[msg.sender] <= 0) return false;
         if(transferIns[msg.sender].length <= 0) return false;
 
@@ -223,23 +225,23 @@ contract Rebellious is ERC20, PoSTokenStandard, Ownable {
         delete transferIns[msg.sender];
         transferIns[msg.sender].push(transferInStruct(uint128(balances[msg.sender]),uint64(now)));
 
-        Mint(msg.sender, reward);
+        emit Mint(msg.sender, reward);
         return true;
     }
 
-    function getBlockNumber() returns (uint blockNumber) {
+    function getBlockNumber() public constant returns (uint blockNumber) {
         blockNumber = block.number.sub(chainStartBlockNumber);
     }
 
-    function coinAge() constant returns (uint myCoinAge) {
+    function coinAge() public view returns (uint myCoinAge) {
         myCoinAge = getCoinAge(msg.sender,now);
     }
 
-    function annualInterest() constant returns(uint interest) {
+    function annualInterest() public constant returns(uint interest) {
         interest = maxMintProofOfStake;
     }
 
-    function getProofOfStakeReward(address _address) internal returns (uint) {
+    function getProofOfStakeReward(address _address) internal view returns (uint) {
         require( (now >= stakeStartTime) && (stakeStartTime > 0) );
 
         uint _now = now;
@@ -251,7 +253,7 @@ contract Rebellious is ERC20, PoSTokenStandard, Ownable {
         return (_coinAge * interest).div(365 * (10**decimals));
     }
 
-    function getCoinAge(address _address, uint _now) internal returns (uint _coinAge) {
+    function getCoinAge(address _address, uint _now) internal view returns (uint _coinAge) {
         if(transferIns[_address].length <= 0) return 0;
 
         for (uint i = 0; i < transferIns[_address].length; i++){
@@ -264,12 +266,12 @@ contract Rebellious is ERC20, PoSTokenStandard, Ownable {
         }
     }
 
-    function ownerSetStakeStartTime(uint timestamp) onlyOwner {
+    function ownerSetStakeStartTime(uint timestamp) public onlyOwner {
         require((stakeStartTime <= 0) && (timestamp >= chainStartTime));
         stakeStartTime = timestamp;
     }
 
-    function ownerBurnToken(uint _value) onlyOwner {
+    function ownerBurnToken(uint _value) public onlyOwner {
         require(_value > 0);
 
         balances[msg.sender] = balances[msg.sender].sub(_value);
@@ -280,11 +282,11 @@ contract Rebellious is ERC20, PoSTokenStandard, Ownable {
         totalInitialSupply = totalInitialSupply.sub(_value);
         maxTotalSupply = maxTotalSupply.sub(_value*10);
 
-        Burn(msg.sender, _value);
+        emit Burn(msg.sender, _value);
     }
 
     /* Batch token transfer. Used by contract creator to distribute initial tokens to holders */
-    function batchTransfer(address[] _recipients, uint[] _values) onlyOwner returns (bool) {
+    function batchTransfer(address[] _recipients, uint[] _values) public onlyOwner returns (bool) {
         require( _recipients.length > 0 && _recipients.length == _values.length);
 
         uint total = 0;
@@ -297,7 +299,7 @@ contract Rebellious is ERC20, PoSTokenStandard, Ownable {
         for(uint j = 0; j < _recipients.length; j++){
             balances[_recipients[j]] = balances[_recipients[j]].add(_values[j]);
             transferIns[_recipients[j]].push(transferInStruct(uint128(_values[j]),_now));
-            Transfer(msg.sender, _recipients[j], _values[j]);
+            emit Transfer(msg.sender, _recipients[j], _values[j]);
         }
 
         balances[msg.sender] = balances[msg.sender].sub(total);
